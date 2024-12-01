@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Student{
+   // basic information
+    id               String  @id @default(uuid())
+    firstname        String 
+    lastname         String
+    email            String  @unique
+    password         String
+    mobile_number    String? @unique
+    profilePicture   String?
+  
+    //Educational Details
+    college         String?
+    course          String?
+    major           String?
+    grad_year       Int?
+
+    // Professional Details
+
+    skills          String[]
+    resume          String?
+    projects        Json?
+    linkedinProfile String?
+    githubProfile   String?
+    portfolio       String?
+    about           String?
+
+    // app specific info
+    role       String  @default("student")
+    isActive   Boolean @default(true)
+    createdAt  DateTime @default(now())
+    updateAt   DateTime @updatedAt
+    verified   Boolean  @default(false)
+    isComplete Boolean @default(false) // added new field for profile completeness
+    
+}
+
+model Mentor{
+  // basic information
+    id               String  @id @default(uuid())
+    firstname        String 
+    lastname         String
+    email            String  @unique
+    password         String
+    mobile_number    String? @unique
+    profilePicture   String?
+  
+  //Proffessional details
+    
+    currentPostion   String?
+    company          String?
+    industry         String?
+    workExperience   Int?
+    skills           String[]
+    linkedinprofile  String?
+    githubProfile    String?
+    portfolio        String?
+
+  // Mentorship Details
+
+  availableTimes     Json?
+  expertiseAreas     String[]
+  menteeLimit        Int        @default(5)
+  bio                String?
+
+  // app specific info
+
+  role             String @default("mentor")
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  verified         Boolean  @default(false) 
+  isComplete       Boolean @default(false)   // added new field for profile completeness
+ 
+}

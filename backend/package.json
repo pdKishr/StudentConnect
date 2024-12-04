@@ -5,15 +5,22 @@
     "deploy": "wrangler deploy --minify"
   },
   "dependencies": {
-    "@prisma/client": "^6.0.0",
+    "@prisma/client": "^6.0.1",
     "@prisma/extension-accelerate": "^1.2.1",
-    "bcrypt": "^5.1.1",
-    "hono": "^4.6.12",
-    "prisma": "^6.0.0"
+    "bcryptjs": "^2.4.3",
+    "hono": "^4.6.12"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241112.0",
     "@types/bcrypt": "^5.0.2",
+    "@types/bcryptjs": "^2.4.6",
+    "prisma": "^6.0.1",
     "wrangler": "^3.88.0"
-  }
+  },
+  "version": "1.0.0",
+  "description": "``` npm install npm run dev ```",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

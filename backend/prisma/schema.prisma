@@ -12,77 +12,148 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Student{
-   // basic information
-    id               String  @id @default(uuid())
-    firstname        String 
-    lastname         String
-    email            String  @unique
+model User{
+    //basic mandatory information
+    id               String   @id @default(uuid())
+    name             String 
+    email            String   @unique
     password         String
-    mobile_number    String? @unique
+    mobile_number    String   @unique
+
+    //other personal details
+    language         String[]
+    city             String?
+    state            String?
+    country          String?
     profilePicture   String?
-  
-    //Educational Details
-    college         String?
-    course          String?
-    major           String?
-    grad_year       Int?
+    // socials & education
+    linkedin         String?
+    resume           String?
+    highestDegree    String?
+    course           String?
+    College          String?
 
-    // Professional Details
+    //app specific
+    isActive         Boolean  @default(true)
+    verified         Boolean  @default(false)
+    isComplete       Boolean  @default(false)
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt  
 
-    skills          String[]
-    resume          String?
-    projects        Json?
-    linkedinProfile String?
-    githubProfile   String?
-    portfolio       String?
-    about           String?
-
-    // app specific info
-    role       String  @default("student")
-    isActive   Boolean @default(true)
-    createdAt  DateTime @default(now())
-    updateAt   DateTime @updatedAt
-    verified   Boolean  @default(false)
-    isComplete Boolean @default(false) // added new field for profile completeness
+    // booking
+    bookings         Booking[]
     
 }
 
 model Mentor{
-  // basic information
-    id               String  @id @default(uuid())
-    firstname        String 
-    lastname         String
-    email            String  @unique
+    // basic mandatory details
+    id               String   @id @default(uuid())
+    name             String   
+    email            String   @unique
     password         String
-    mobile_number    String? @unique
+    mobile_number    String   @unique
     profilePicture   String?
-  
-  //Proffessional details
+    city             String?
+    state            String?
+    country          String?
+
+    // education and work experience
+    education        Education[]
+    workExperience   WorkExperience[]
+    skill            String[]
+    currentlyWorking Boolean  @default(true)
+    yearsofExperience Int?         
+    domain            String?   
+    tools             String[]
     
-    currentPostion   String?
-    company          String?
-    industry         String?
-    workExperience   Int?
-    skills           String[]
-    linkedinprofile  String?
-    githubProfile    String?
-    portfolio        String?
+    //socials 
+    linkedin         String?
+    Instagram        String?
+     
+    // about
+    about            String?   
+    language         String[]
+     
+    //Bookings
+    menteesCount     Int  @default(0)
+    availableTime    AvailableTime[]
+    price_1month     Int?
+    price_3month     Int?
+    price_6month     Int?
+    sessionsPerMonth Int?
+    sessionsCount    Int  @default(0)
+    menteeMinutes    Int  @default(0)
+    booking          Booking[]
 
-  // Mentorship Details
+    //app specific
+    isActive         Boolean  @default(true)
+    verified         Boolean  @default(false)
+    isComplete       Boolean  @default(false)
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
+}
 
-  availableTimes     Json?
-  expertiseAreas     String[]
-  menteeLimit        Int        @default(5)
-  bio                String?
+model AvailableTime{
+    id            String @id @default(uuid())
+    mentorId      String
+    mentor        Mentor @relation(fields:[id],references: [id])
+    day           Day 
+    availability  Boolean @default(true)
+    startTime     DateTime
+    endTime       DateTime
+}
 
-  // app specific info
+enum Day{
+    mon
+    tue
+    wed
+    thu
+    fri
+    sat
+    sun
+}
 
-  role             String @default("mentor")
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  verified         Boolean  @default(false) 
-  isComplete       Boolean @default(false)   // added new field for profile completeness
- 
+model Education{
+    id        String  @id @default(cuid())
+    mentorId  String  
+    mentor    Mentor  @relation(fields:[mentorId],references: [id])
+    college   String
+    degree    String
+    course    String
+    startYear Int?
+    endYear   Int?
+}
+
+model WorkExperience{
+      id          String  @id @default(cuid())
+      mentorId    String 
+      mentor      Mentor  @relation(fields:[mentorId],references: [id])
+      company     String
+      role        String
+      startYear   Int
+      endYear     Int?     
+}
+
+model Booking{
+     id String @id @default(uuid())
+     userId  String
+     user User @relation(fields:[userId],references: [id])
+     mentorId  String
+     mentor   Mentor @relation(fields:[mentorId],references: [id])
+     bookingStatus status @default(upcoming)
+     startTime DateTime
+     endTime   DateTime
+}
+
+enum status{
+    upcoming
+    ongoing
+    completed
+}
+
+model Admin{
+    id           String   @id @default(uuid())
+    email        String   @unique
+    password     String 
+    verifyBox    String[]
 }

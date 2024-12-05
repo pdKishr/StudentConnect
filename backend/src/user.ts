@@ -3,6 +3,16 @@ import { PrismaClient } from '@prisma/client/edge'
 import { withAccelerate } from '@prisma/extension-accelerate'
 import {jwt,sign} from 'hono/jwt'
 import bcrypt from 'bcryptjs' 
+import zod from 'zod'
+import {
+     signupSchema,
+     Signup,
+     signinSchema,
+     Signin,
+     userSchema,
+     User
+} from '@pdkishr/guided-common'
+
 
 const user = new Hono<{
     Bindings : {
@@ -26,10 +36,16 @@ user.use('/auth/*', async(c,next)=>{
 
 user.post('/signup',async(c)=>{
 
-    const body : any= await c.req.json();
+    const body : Signup = await c.req.json();
+    const {success} = signupSchema.safeParse(body);
+
+    if(! success){
+        c.status(403);
+         return c.json({msg :'invalid inputs'})
+       }
+
     const hashedPassword = await bcrypt.hash(body.password, c.env.SALT_ROUNDS);
    
-    // zod validation required*****************
     const prisma = new PrismaClient({
 		datasourceUrl: c.env.DATABASE_URL	
 	}).$extends(withAccelerate())
@@ -37,7 +53,6 @@ user.post('/signup',async(c)=>{
     try{
         const user = await prisma.user.create({
             data :{
-              name  : body.name,
               email : body.email,
               password : hashedPassword,
               mobile_number : body.mobile_number
@@ -57,9 +72,14 @@ user.post('/signup',async(c)=>{
 })
 
 user.post('/signin', async (c)=>{
-    const body: any = await c.req.json();
-    
-    //zod validation required*****************
+    const body : Signin = await c.req.json();
+    const {success} = signinSchema.safeParse(body);
+     
+    if(! success){
+        c.status(403);
+         return c.json({msg :'invalid inputs'})
+       }
+
     const prisma = new PrismaClient({
 		datasourceUrl: c.env?.DATABASE_URL	,
 	}).$extends(withAccelerate());
@@ -75,7 +95,7 @@ user.post('/signin', async (c)=>{
             c.status(403)
             return c.json({msg:'user not exists'})
         }
-        //user?.password === undefined ?'default':
+       
         const rehashedPassword : string  = user.password;
         const isMatch = await bcrypt.compare(body.password, rehashedPassword);
        
@@ -96,30 +116,68 @@ user.post('/signin', async (c)=>{
 
 })
 
-user.put('/auth/myProfile',async (c)=>{
+user.get('/auth/view-myProfile/', async(c)=>{
+     const jwtPayload = c.get('jwtPayload')
+     const id : string = jwtPayload.id
+     
+     const prisma = new PrismaClient({
+        datasourceUrl : c.env?.DATABASE_URL
+     }).$extends(withAccelerate())
+    
+     try{
+         const user = await prisma.user.findUnique({
+            where :{id:id},
+            select:{
+                name              : true,
+                language          : true,
+                city              : true,
+                state             : true,
+                country           : true,
+                profilePicture    : true,
+                linkedin          : true,
+                resume            : true,
+                highestDegree     : true,
+                course            : true,
+                college           : true,
+                completePercentage: true,          
+            }
+         })
+        
+         return c.json({user:user});
+     }
+     catch(e){
+        c.status(403);
+        return c.json({err:'error'})
+    }
+    finally{
+        await prisma.$disconnect();
+    }
+})
+
+user.put('/auth/update-myProfile',async (c)=>{
 
     // this function checks completeness of profile 
     function completePercentageFunction(user:{[key:string]:any}): number{
     
-        let filledCount = 0;
-        let totalCount  = Object.keys(user).length - 1;
-
-        for(const key in user){
-            if(user.hasOwnProperty(key)){
-                 if(user[key]) filledCount++;
-            }
-        }
-
-        const percent = (filledCount/totalCount)*100;
-        return percent;
+       const factors = ['name','mobilenumber','email','profilePicture','city','state','country','language','linkedin','resume','highestDegree','course','college']
+       const filters = factors.filter( factor => user[factor])
+       const total   = factors.length
+       const filled  = filters.length
+       return 100 * filled/total;
+    
     }
-     
+
     const jwtpayload = c.get('jwtPayload');
     const id : string = jwtpayload.id;
     
-    //zod validation required*****************
-    const updatedData: any = await c.req.json()
-    
+  
+    const body : User = await c.req.json()
+    const {success}   = userSchema.safeParse(body);
+    if(! success){
+        c.status(403);
+         return c.json({msg :'invalid inputs'})
+       }
+
     const prisma = new PrismaClient({
 		datasourceUrl: c.env?.DATABASE_URL	,
 	}).$extends(withAccelerate());
@@ -129,11 +187,17 @@ user.put('/auth/myProfile',async (c)=>{
          where :{
             id : id
          },
-         data: updatedData
+         data: body
        })
       
-       const completePercentage = completePercentageFunction(user);    
-       return c.json({msg:'updated', completePercentage : completePercentage});
+       const completePercentage = completePercentageFunction(user);   
+    
+       await prisma.user.update({
+        where :{id:id},
+        data :{ completePercentage : completePercentage}
+       }) 
+       
+       return c.json({msg:'updated'});
     }
     catch(e){
         c.status(403);
@@ -144,14 +208,134 @@ user.put('/auth/myProfile',async (c)=>{
     }
 })
 
-user.get('/auth/search-mentors/', async(c)=>{
+user.put('/auth/change-email', async(c)=>{
+    const email =  c.req.header('email')
+    const emailSchema = zod.string().email()
+    const success = emailSchema.safeParse(email)
+
+    if(! success){
+        c.status(403);
+         return c.json({msg :'invalid inputs'})
+       }
+    
+    const jwtpayload          = c.get('jwtPayload');
+    const id        : string  = jwtpayload.id;
+     
+    const prisma = new PrismaClient({
+      datasourceUrl : c.env?.DATABASE_URL
+    }).$extends(withAccelerate())
+
+      try{
+         const user = await prisma.user.update({
+           where:{id:id},
+           data : {
+              email : email,
+           }
+         })
+      }
+     catch(e){
+      c.status(403)
+      return c.json({err:"error"})
+      }
+      finally{
+          await prisma.$disconnect()
+      }
+})
+
+user.put('/auth/change-mobileNumber', async(c)=>{
+
+    const body :{mobile:number} =  await c.req.json()
+    const schema  = zod.number().min(10).max(15)
+    const success = schema.safeParse(body.mobile)
+
+    if(! success){
+        c.status(403);
+         return c.json({msg :'invalid inputs'})
+       }
+
+    const jwtpayload          = c.get('jwtPayload');
+    const id        : string  = jwtpayload.id;
+     
+    const prisma = new PrismaClient({
+      datasourceUrl : c.env?.DATABASE_URL
+    }).$extends(withAccelerate())
+
+      try{
+         const user = await prisma.user.update({
+           where:{id:id},
+           data : {
+              mobile_number : body.mobile
+           }
+         })
+      }
+     catch(e){
+      c.status(403)
+      return c.json({err:"error"})
+      }
+      finally{
+          await prisma.$disconnect()
+      }
+})
+
+user.put('/auth/change-password', async(c)=>{
+    const body = c.req.header()
+    const schema = zod.object({
+        newPassword : zod.string().min(8),
+        oldPassword : zod.string().min(8)
+    })
+    const success = schema.safeParse(body);
+    if(! success){
+        c.status(403);
+         return c.json({msg :'invalid inputs'})
+       }
+
+    const jwtpayload   = c.get('jwtPayload');
+    const id : string  = jwtpayload.id;
+   
+    const prisma = new PrismaClient({
+      datasourceUrl : c.env?.DATABASE_URL
+    }).$extends(withAccelerate())
+    
+      try{
+         const user = await prisma.user.findUnique({
+           where:{id:id},
+           select : {password:true}
+         })
+         const hashedoldPassword: string = user?.password ? user.password:'default';
+         const isMatch = await  bcrypt.compare(body.oldPassword,hashedoldPassword);
+        
+         if(! isMatch){
+             c.status(401)
+             return c.json({err:'oldPassword mismatch'})
+         }
+
+        const hashednewpassword = await bcrypt.hash(body.newPassword,c.env.SALT_ROUNDS);
+
+        await prisma.user.update({
+            where :{id:id},
+            data:{ password: hashednewpassword}
+        })
+    
+        return c.json({msg:'password updated'})
+
+      }
+    
+     catch(e){
+      c.status(403)
+      return c.json({err:"error"})
+      }
+      finally{
+          await prisma.$disconnect()
+      }
+})
+
+user.get('/auth/search-mentors', async(c)=>{
     const searchKey  = c.req.header('searchKey');
-    const filters = await c.req.json();
+    const filters    = await c.req.json();
 
     const prisma = new PrismaClient({
         datasourceUrl : c.env?.DATABASE_URL
     }).$extends(withAccelerate())
-
     
     try{
          const mentors = await prisma.mentor.findMany({
@@ -181,7 +365,7 @@ user.get('/auth/search-mentors/', async(c)=>{
                              
                       ]
                     },
-
+                
                     { yearsofExperience :{gte: filters.minExperience , lte: filters.maxExperience}},
                     {
                         OR:[
@@ -190,11 +374,10 @@ user.get('/auth/search-mentors/', async(c)=>{
                             {price_6month :{gte : filters.priceRange[0] , lte: filters.priceRange[1]}},
                         ]
                     },
-                    { language : {hasSome: filters.languages }}
-                
-                ]
-               
-              
+                    { language : {hasSome: filters.languages }},
+                    { verified : true}
+                  
+                ]  
             },
             select :{
                    email             : true,
@@ -211,11 +394,11 @@ user.get('/auth/search-mentors/', async(c)=>{
                    price_6month      : true,
                    sessionsPerMonth  : true,
                    menteeMinutes     : true,
-                   sessionsCount     : true                
+                   sessionsCount     : true,             
             },
             include :{
-                  education      :{select : { college : true ,degree: true, course: true}},
-                  workExperience :{ select :{company:true , role:true}}
+                  education      :{ select : { college:true,degree: true, course: true}},
+                  workExperience :{ select : {company:true ,role:true}}
             }
          })
 
@@ -234,7 +417,7 @@ user.get('/auth/search-mentors/', async(c)=>{
 
 user.get('/auth/mentor-profile', async(c)=>{
      const mentorId = c.req.query('mentorId');
-     
+     //zod for string mentor id
      const prisma = new PrismaClient({
         datasourceUrl : c.env?.DATABASE_URL
     }).$extends(withAccelerate())
@@ -242,7 +425,7 @@ user.get('/auth/mentor-profile', async(c)=>{
     try{
         const mentor = await prisma.mentor.findUnique({
                where :{
-                  id : mentorId
+                  id : mentorId, verified: true
                },
                select :{
                 email             : true,
@@ -278,6 +461,48 @@ user.get('/auth/mentor-profile', async(c)=>{
      
 }) 
 
-// filters 
+user.get('/auth/view-mentor-pricing', async(c)=>{
+    const mentorId = c.req.query('mentorId')
+    //zod 
+    const prisma = new PrismaClient({
+        datasourceUrl : c.env?.DATABASE_URL
+    }).$extends(withAccelerate())
+
+    try{
+         const user = await prisma.mentor.findUnique({
+            where :{id:mentorId},
+            select :{
+                price_1month : true,
+                price_3month : true,
+                price_6month : true
+            }
+         
+         })  
+ 
+         var price3 = user?.price_3month 
+         if(price3) price3*=3;
+
+         var price6 = user?.price_6month
+         if(price6) price6*=6;
+
+         return c.json({
+            user : user,
+            price3: price3,
+            price6: price6
+         })
+
+    }
+    catch(e){
+        c.status(403)
+        return c.json({err:'error'})
+    }
+    finally{
+        await prisma.$disconnect()
+    }
+    
+    
+})
+
+//payment routes
 
 export default user

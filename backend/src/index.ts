@@ -5,6 +5,6 @@ import mentor from './mentor'
 const app = new Hono()
 
 app.route('/api/v1/user' ,user)
-app.route('/api/v1/mentor',mentor)
+app.route('/api/v1/mentor',mentor) 
 
 export default app

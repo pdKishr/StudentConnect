@@ -15,10 +15,10 @@ datasource db {
 model User{
     //basic mandatory information
     id               String   @id @default(uuid())
-    name             String 
+    name             String? 
     email            String   @unique
     password         String
-    mobile_number    String   @unique
+    mobile_number    Int   @unique
 
     //other personal details
     language         String[]
@@ -26,32 +26,33 @@ model User{
     state            String?
     country          String?
     profilePicture   String?
+
     // socials & education
     linkedin         String?
     resume           String?
     highestDegree    String?
     course           String?
-    College          String?
+    college          String?
 
     //app specific
-    isActive         Boolean  @default(true)
-    verified         Boolean  @default(false)
-    isComplete       Boolean  @default(false)
-    createdAt        DateTime @default(now())
-    updatedAt        DateTime @updatedAt  
+    isActive            Boolean  @default(true)
+    completePercentage  Int      @default(0)
+    createdAt           DateTime @default(now())
+    updatedAt           DateTime @updatedAt  
+    purchase            Purchase[]
 
-    // booking
-    bookings         Booking[]
+    // booking of free trials at max 10 only
+    trialbooking        TrialBooking[]
     
 }
 
 model Mentor{
     // basic mandatory details
     id               String   @id @default(uuid())
-    name             String   
+    name             String?   
     email            String   @unique
     password         String
-    mobile_number    String   @unique
+    mobile_number    Int   @unique
     profilePicture   String?
     city             String?
     state            String?
@@ -83,24 +84,25 @@ model Mentor{
     sessionsPerMonth Int?
     sessionsCount    Int  @default(0)
     menteeMinutes    Int  @default(0)
-    booking          Booking[]
+    trialbooking     TrialBooking[] 
+    purchase         Purchase[]
 
     //app specific
     isActive         Boolean  @default(true)
     verified         Boolean  @default(false)
-    isComplete       Boolean  @default(false)
+    pagesetup        Boolean  @default(false)
     createdAt        DateTime @default(now())
     updatedAt        DateTime @updatedAt
 }
 
 model AvailableTime{
-    id            String @id @default(uuid())
+    id            String  @id @default(uuid())
     mentorId      String
-    mentor        Mentor @relation(fields:[id],references: [id])
+    mentor        Mentor  @relation(fields:[id],references: [id])
     day           Day 
     availability  Boolean @default(true)
-    startTime     DateTime
-    endTime       DateTime
+    startTime     DateTime?
+    endTime       DateTime?
 }
 
 enum Day{
@@ -134,15 +136,29 @@ model WorkExperience{
       endYear     Int?     
 }
 
-model Booking{
-     id String @id @default(uuid())
-     userId  String
-     user User @relation(fields:[userId],references: [id])
-     mentorId  String
-     mentor   Mentor @relation(fields:[mentorId],references: [id])
+model Purchase{
+      id                 String @id @default(uuid())
+      userId             String
+      user               User   @relation(fields:[userId],references:[id])
+      mentorId           String
+      mentor             Mentor @relation(fields:[mentorId],references:[id])
+      plan               String
+      duration           Int // 30days or 90days or 180 days
+      startDate          DateTime
+      endDate            DateTime
+      totalSessions      Int
+      availableSessions  Int
+}
+
+model TrialBooking{
+     id            String @id @default(uuid())
+     userId        String
+     user          User   @relation(fields:[userId] ,references: [id])
+     mentorId      String
+     mentor        Mentor @relation(fields:[mentorId],references: [id])
      bookingStatus status @default(upcoming)
-     startTime DateTime
-     endTime   DateTime
+     startTime     DateTime
+     endTime       DateTime
 }
 
 enum status{

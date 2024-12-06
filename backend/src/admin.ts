@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client/edge'
 import { withAccelerate } from '@prisma/extension-accelerate'
 import {jwt,sign} from 'hono/jwt'
 
-
 const admin = new Hono<{
     Bindings : {
         DATABASE_URL : string
@@ -25,20 +24,20 @@ admin.use('/auth/*', async(c,next)=>{
 })
 
 admin.post('/signin' , async(c)=>{
-     const body = await c.req.json()
+     const body  = await c.req.json()
      
      const prisma = new PrismaClient({
         datasourceUrl : c.env?.DATABASE_URL
      }).$extends(withAccelerate())
     
      try{
-        const mentor = await prisma.mentor.findUnique({
-             where :{id:body.id ,password:body.password}
+        const admin = await prisma.admin.findUnique({
+             where :{email:body.email ,password:body.password}
         })
 
-        if(!mentor) return c.json({err:'admin not exists'})
+        if(!admin) return c.json({err:'admin not exists'})
         
-        const token = await sign({id:mentor.id},c.env.JWT_KEY)
+        const token = await sign({id: admin?.id},c.env.JWT_KEY)
         return c.json({token});
      }
      catch(e){
@@ -53,7 +52,7 @@ admin.post('/signin' , async(c)=>{
 })
 
 admin.get('/auth/new-mentors', async(c)=>{
-
+ 
      const prisma = new PrismaClient({
         datasourceUrl : c.env?.DATABASE_URL
      }).$extends(withAccelerate())
@@ -81,20 +80,18 @@ admin.get('/auth/new-mentors', async(c)=>{
 
 admin.get('/auth/view-mentor-profile', async(c)=>{
     const mentorId    = c.req.header('mentorId')
-    const mentorEmail = c.req.header('mentorEmail')
-    
+    if(!mentorId) return c.json('invalid input')
      const prisma = new PrismaClient({
         datasourceUrl : c.env?.DATABASE_URL
      }).$extends(withAccelerate())
     
      try{
          const mentor = await prisma.mentor.findMany({
-            where : { OR:[{id:mentorId,email:mentorEmail}]},
+            where : { id:mentorId},
             select: {
                  id : true,
                  name              : true,
                  email             : true,
-                 password          : true,
                  mobile_number     : true,
                  profilePicture    : true,
                  city              : true,
@@ -118,10 +115,7 @@ admin.get('/auth/view-mentor-profile', async(c)=>{
                  isActive          : true,    
                  verified          : true,  
                  createdAt         : true,
-                 updatedAt         : true
-             },
-             
-             include:{
+                 updatedAt         : true,
                  education : {
                      select :{
                          college  : true,
@@ -165,7 +159,7 @@ admin.get('/auth/view-mentor-profile', async(c)=>{
 
 admin.post('/auth/approve-new-mentor', async(c)=>{
     const mentorId = c.req.header('mentorId')
-
+     if(!mentorId) return c.json('invalid input')
     const prisma = new PrismaClient({
         datasourceUrl : c.env?.DATABASE_URL
      }).$extends(withAccelerate())

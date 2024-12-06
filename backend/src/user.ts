@@ -43,9 +43,9 @@ user.post('/signup',async(c)=>{
         c.status(403);
          return c.json({msg :'invalid inputs'})
        }
-
+    
     const hashedPassword = await bcrypt.hash(body.password, c.env.SALT_ROUNDS);
-   
+
     const prisma = new PrismaClient({
 		datasourceUrl: c.env.DATABASE_URL	
 	}).$extends(withAccelerate())
@@ -58,13 +58,13 @@ user.post('/signup',async(c)=>{
               mobile_number : body.mobile_number
             }
         })
-
+    
        const token = await sign({id:user.id},c.env.JWT_KEY)
        return c.json({token : token})
     }
     catch(e){
         c.status(403);
-        return c.json({err:'one user account already assosiated with email'})
+        return c.json({err:'one user account already assosiated with email or mobile number'})
     }
     finally {
         await prisma.$disconnect();
@@ -116,7 +116,7 @@ user.post('/signin', async (c)=>{
 
 })
 
-user.get('/auth/view-myProfile/', async(c)=>{
+user.get('/auth/view-myProfile', async(c)=>{
      const jwtPayload = c.get('jwtPayload')
      const id : string = jwtPayload.id
      
@@ -139,7 +139,8 @@ user.get('/auth/view-myProfile/', async(c)=>{
                 highestDegree     : true,
                 course            : true,
                 college           : true,
-                completePercentage: true,          
+                completePercentage: true,
+                createdAt         : true          
             }
          })
         
@@ -166,28 +167,45 @@ user.put('/auth/update-myProfile',async (c)=>{
        return 100 * filled/total;
     
     }
-
-    const jwtpayload = c.get('jwtPayload');
+   
+    const jwtpayload  = c.get('jwtPayload');
     const id : string = jwtpayload.id;
     
-  
-    const body : User = await c.req.json()
-    const {success}   = userSchema.safeParse(body);
+    const body              = await c.req.json()
+    const updateData : User = body
+    const {success}         = userSchema.safeParse(updateData);
+
     if(! success){
         c.status(403);
          return c.json({msg :'invalid inputs'})
        }
-
+    
     const prisma = new PrismaClient({
 		datasourceUrl: c.env?.DATABASE_URL	,
 	}).$extends(withAccelerate());
     
     try{
-      const user = await prisma.user.update({
+        const oldData = await prisma.user.findUnique({
+            where :{id:id}
+        })
+
+      await prisma.user.update({
          where :{
             id : id
          },
-         data: body
+         data: {
+            name              : body?.name ?? oldData?.name,
+            language          : body?.language ?? oldData?.language,
+            profilePicture    : body?.profilePicture ?? oldData?.profilePicture,
+            city              : body?.city ?? oldData?.city, 
+            state             : body?.state ?? oldData?.state,
+            country           : body?.country ?? oldData?.country,
+            linkedin          : body?.linkedin ?? oldData?.linkedin,
+            resume            : body?.resume ?? oldData?.resume,
+            highestDegree     : body?.highestDegree ?? oldData?.highestDegree,
+            course            : body?.course ?? oldData?.course,
+            college           : body?.collage ?? oldData?.college
+         }
        })
       
        const completePercentage = completePercentageFunction(user);   
@@ -209,6 +227,7 @@ user.put('/auth/update-myProfile',async (c)=>{
 })
 
 user.put('/auth/change-email', async(c)=>{
+    console.log('here')
     const email =  c.req.header('email')
     const emailSchema = zod.string().email()
     const success = emailSchema.safeParse(email)
@@ -232,10 +251,11 @@ user.put('/auth/change-email', async(c)=>{
               email : email,
            }
          })
+         return c.json({msg:'changed email'})
       }
      catch(e){
       c.status(403)
-      return c.json({err:"error"})
+      return c.json({err:"email exists"})
       }
       finally{
           await prisma.$disconnect()
@@ -244,7 +264,7 @@ user.put('/auth/change-email', async(c)=>{
 
 user.put('/auth/change-mobileNumber', async(c)=>{
 
-    const body :{mobile:number} =  await c.req.json()
+    const body :{mobile:string} =  await c.req.json()
     const schema  = zod.number().min(10).max(15)
     const success = schema.safeParse(body.mobile)
 
@@ -267,10 +287,12 @@ user.put('/auth/change-mobileNumber', async(c)=>{
               mobile_number : body.mobile
            }
          })
+         return c.json({msg:'changed mobile number'})
       }
      catch(e){
+        console.log(e);
       c.status(403)
-      return c.json({err:"error"})
+      return c.json({err:"mobile number exists"})
       }
       finally{
           await prisma.$disconnect()
@@ -278,11 +300,12 @@ user.put('/auth/change-mobileNumber', async(c)=>{
 })
 
 user.put('/auth/change-password', async(c)=>{
-    const body = c.req.header()
+    const body = await c.req.json()
     const schema = zod.object({
         newPassword : zod.string().min(8),
         oldPassword : zod.string().min(8)
     })
+
     const success = schema.safeParse(body);
     if(! success){
         c.status(403);
@@ -298,9 +321,10 @@ user.put('/auth/change-password', async(c)=>{
     
       try{
          const user = await prisma.user.findUnique({
-           where:{id:id},
+           where  : {id:id},
            select : {password:true}
          })
+
          const hashedoldPassword: string = user?.password ? user.password:'default';
          const isMatch = await  bcrypt.compare(body.oldPassword,hashedoldPassword);
         
@@ -321,8 +345,9 @@ user.put('/auth/change-password', async(c)=>{
       }
     
      catch(e){
+        
       c.status(403)
-      return c.json({err:"error"})
+      return c.json({err:"error catched"})
       }
       finally{
           await prisma.$disconnect()

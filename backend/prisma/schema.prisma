@@ -18,7 +18,7 @@ model User{
     name             String? 
     email            String   @unique
     password         String
-    mobile_number    Int   @unique
+    mobile_number    String   @unique
 
     //other personal details
     language         String[]
@@ -43,7 +43,7 @@ model User{
 
     // booking of free trials at max 10 only
     trialbooking        TrialBooking[]
-    
+  
 }
 
 model Mentor{
@@ -52,12 +52,12 @@ model Mentor{
     name             String?   
     email            String   @unique
     password         String
-    mobile_number    Int   @unique
+    mobile_number    String   @unique
     profilePicture   String?
     city             String?
     state            String?
     country          String?
-
+ 
     // education and work experience
     education        Education[]
     workExperience   WorkExperience[]
@@ -90,58 +90,49 @@ model Mentor{
     //app specific
     isActive         Boolean  @default(true)
     verified         Boolean  @default(false)
-    pagesetup        Boolean  @default(false)
     createdAt        DateTime @default(now())
     updatedAt        DateTime @updatedAt
 }
 
 model AvailableTime{
-    id            String  @id @default(uuid())
+    id            String  @default(uuid())
     mentorId      String
-    mentor        Mentor  @relation(fields:[id],references: [id])
-    day           Day 
-    availability  Boolean @default(true)
-    startTime     DateTime?
-    endTime       DateTime?
-}
+    mentor        Mentor  @relation(fields:[id],references: [id], onDelete: Cascade)
+    day           Int     // 0 for sun, 1 for mon , .........., 6 for sat
+    availability  Boolean @default(false)
+    startTime     String?  // 7.00 AM
+    endTime       String?  // 12.00 pm
 
-enum Day{
-    mon
-    tue
-    wed
-    thu
-    fri
-    sat
-    sun
+    @@id([mentorId,day]) 
 }
 
 model Education{
     id        String  @id @default(cuid())
     mentorId  String  
-    mentor    Mentor  @relation(fields:[mentorId],references: [id])
+    mentor    Mentor  @relation(fields:[mentorId],references: [id], onDelete: Cascade)
     college   String
     degree    String
     course    String
-    startYear Int?
-    endYear   Int?
+    startYear String
+    endYear   String
 }
 
 model WorkExperience{
       id          String  @id @default(cuid())
       mentorId    String 
-      mentor      Mentor  @relation(fields:[mentorId],references: [id])
+      mentor      Mentor  @relation(fields:[mentorId],references: [id], onDelete: Cascade)
       company     String
       role        String
-      startYear   Int
-      endYear     Int?     
+      startYear   String
+      endYear     String    
 }
 
 model Purchase{
       id                 String @id @default(uuid())
       userId             String
-      user               User   @relation(fields:[userId],references:[id])
+      user               User   @relation(fields:[userId],references:[id], onDelete: Cascade)
       mentorId           String
-      mentor             Mentor @relation(fields:[mentorId],references:[id])
+      mentor             Mentor @relation(fields:[mentorId],references:[id], onDelete: Cascade)
       plan               String
       duration           Int // 30days or 90days or 180 days
       startDate          DateTime
@@ -157,8 +148,7 @@ model TrialBooking{
      mentorId      String
      mentor        Mentor @relation(fields:[mentorId],references: [id])
      bookingStatus status @default(upcoming)
-     startTime     DateTime
-     endTime       DateTime
+     startTime     String
 }
 
 enum status{
@@ -170,6 +160,5 @@ enum status{
 model Admin{
     id           String   @id @default(uuid())
     email        String   @unique
-    password     String 
-    verifyBox    String[]
+    password     String   
 }

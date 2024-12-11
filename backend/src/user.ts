@@ -13,7 +13,6 @@ import {
      User
 } from '@pdkishr/guided-common'
 
-
 const user = new Hono<{
     Bindings : {
         DATABASE_URL : string
@@ -227,10 +226,10 @@ user.put('/auth/update-myProfile',async (c)=>{
 })
 
 user.put('/auth/change-email', async(c)=>{
-    console.log('here')
+   
     const email =  c.req.header('email')
     const emailSchema = zod.string().email()
-    const success = emailSchema.safeParse(email)
+    const {success} = emailSchema.safeParse(email)
 
     if(! success){
         c.status(403);
@@ -266,7 +265,7 @@ user.put('/auth/change-mobileNumber', async(c)=>{
 
     const body :{mobile:string} =  await c.req.json()
     const schema  = zod.number().min(10).max(15)
-    const success = schema.safeParse(body.mobile)
+    const {success} = schema.safeParse(body.mobile)
 
     if(! success){
         c.status(403);
@@ -306,7 +305,7 @@ user.put('/auth/change-password', async(c)=>{
         oldPassword : zod.string().min(8)
     })
 
-    const success = schema.safeParse(body);
+    const {success} = schema.safeParse(body);
     if(! success){
         c.status(403);
          return c.json({msg :'invalid inputs'})
@@ -355,8 +354,7 @@ user.put('/auth/change-password', async(c)=>{
 })
 
 user.get('/auth/search-mentors', async(c)=>{
-    const searchKey  = c.req.header('searchKey');
-    const filters    = await c.req.json();
+    const searchKey  = c.req.header('searchkey');
 
     const prisma = new PrismaClient({
         datasourceUrl : c.env?.DATABASE_URL
@@ -371,7 +369,7 @@ user.get('/auth/search-mentors', async(c)=>{
                         {name      : { contains :searchKey , mode:"insensitive"}},
                         {education :{ some :{
                                     OR:[
-                                        { college : {contains : searchKey , mode :"insensitive"} },
+                                        { college : { contains : searchKey , mode :"insensitive"} },
                                         { degree  : { contains: searchKey , mode :"insensitive"} },
                                         { course  : { contains: searchKey , mode :"insensitive"} },
                                     ],                
@@ -386,22 +384,9 @@ user.get('/auth/search-mentors', async(c)=>{
     
                         },
                         {skill      :  { has  : searchKey }},
-                        {domain     :  { contains :searchKey , mode:"insensitive"}},
-                             
+                        {domain     :  { contains :searchKey , mode:"insensitive"}},                        
                       ]
-                    },
-                
-                    { yearsofExperience :{gte: filters.minExperience , lte: filters.maxExperience}},
-                    {
-                        OR:[
-                            {price_1month :{gte : filters.priceRange[0] , lte: filters.priceRange[1]}},
-                            {price_3month :{gte : filters.priceRange[0] , lte: filters.priceRange[1]}},
-                            {price_6month :{gte : filters.priceRange[0] , lte: filters.priceRange[1]}},
-                        ]
-                    },
-                    { language : {hasSome: filters.languages }},
-                    { verified : true}
-                  
+                    },              
                 ]  
             },
             select :{
@@ -412,18 +397,10 @@ user.get('/auth/search-mentors', async(c)=>{
                    domain            : true,
                    language          : true,
                    currentlyWorking  : true,
-                   tools             : true,
                    about             : true,
-                   price_1month      : true,
-                   price_3month      : true,
-                   price_6month      : true,
-                   sessionsPerMonth  : true,
-                   menteeMinutes     : true,
-                   sessionsCount     : true,             
-            },
-            include :{
-                  education      :{ select : { college:true,degree: true, course: true}},
-                  workExperience :{ select : {company:true ,role:true}}
+                   menteeMinutes     : true,           
+                   education      :{ select : { college:true,degree: true, course: true}},
+                   workExperience :{ select : { company:true ,role:true}}
             }
          })
 
@@ -439,10 +416,16 @@ user.get('/auth/search-mentors', async(c)=>{
     }
 
 })
+// add filters route if needed
 
-user.get('/auth/mentor-profile', async(c)=>{
-     const mentorId = c.req.query('mentorId');
-     //zod for string mentor id
+user.get('/auth/view-mentor-profile', async(c)=>{
+     const mentorEmail  = c.req.header('mentoremail');
+
+     if(!mentorEmail) {
+         c.status(403)
+        return c.json({msg:'empty search'})
+     } 
+
      const prisma = new PrismaClient({
         datasourceUrl : c.env?.DATABASE_URL
     }).$extends(withAccelerate())
@@ -450,7 +433,7 @@ user.get('/auth/mentor-profile', async(c)=>{
     try{
         const mentor = await prisma.mentor.findUnique({
                where :{
-                  id : mentorId, verified: true
+                  email : mentorEmail, verified: true
                },
                select :{
                 email             : true,
@@ -461,20 +444,13 @@ user.get('/auth/mentor-profile', async(c)=>{
                 language          : true,
                 skill             : true,
                 about             : true,
-                price_1month      : true,
-                price_3month      : true,
-                price_6month      : true,
-                sessionsPerMonth  : true,
-               },
-               include :{
-                education      :{select : { college : true ,degree: true, course: true, startYear: true, endYear: true}},
-                workExperience :{ select: {company:true , role:true}}
+                service           : {select : { name : true, price: true , description : true}}, 
+                education         : {select : { college : true ,degree: true, course: true, startYear: true, endYear: true}},
+                workExperience    : {select : { company:true , role:true}},
+                slot              : {select : { id: true, startTime: true ,endTime: true}}
                }
- 
         })
-    
         return c.json({mentor : mentor})
-    
     }
     catch(e){
         c.status(403)
@@ -482,40 +458,44 @@ user.get('/auth/mentor-profile', async(c)=>{
     }
     finally{
         await prisma.$disconnect()
-    }
-     
+    }  
 }) 
 
-user.get('/auth/view-mentor-pricing', async(c)=>{
-    const mentorId = c.req.query('mentorId')
-    //zod 
+//payments route & selecting slot & booking
+
+user.post('/auth/booking', async(c)=>{
+
+    const body = await c.req.json();
+    const jwtpayload   = c.get('jwtPayload');
+    const id : string  = jwtpayload.id;
+
     const prisma = new PrismaClient({
         datasourceUrl : c.env?.DATABASE_URL
     }).$extends(withAccelerate())
 
     try{
-         const user = await prisma.mentor.findUnique({
-            where :{id:mentorId},
-            select :{
-                price_1month : true,
-                price_3month : true,
-                price_6month : true
-            }
-         
-         })  
- 
-         var price3 = user?.price_3month 
-         if(price3) price3*=3;
+         await prisma.$transaction(async ( prisma)=>{
+             
+             await prisma.slot.update({
+                where : {id: body.slotId},
+                data :  { isBooked : true}
+              })
 
-         var price6 = user?.price_6month
-         if(price6) price6*=6;
+              await prisma.booking.create({
+                 data :{
+                     userId : id,
+                     mentorId : body.mentorId,
+                     serviceId: body.serviceId,
+                     slotId   : body.slotId,
+                     status   : 'upcoming',
+                 }
+              })
 
-         return c.json({
-            user : user,
-            price3: price3,
-            price6: price6
-         })
+              // payment pending
 
+         }) ;
+
+         return c.json({msg:'booking successful'})
     }
     catch(e){
         c.status(403)
@@ -523,11 +503,7 @@ user.get('/auth/view-mentor-pricing', async(c)=>{
     }
     finally{
         await prisma.$disconnect()
-    }
-    
-    
+    } 
 })
-
-//payment routes
 
 export default user

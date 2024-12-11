@@ -35,75 +35,62 @@ model User{
     college          String?
 
     //app specific
+    timezone            String?
     isActive            Boolean  @default(true)
     completePercentage  Int      @default(0)
     createdAt           DateTime @default(now())
     updatedAt           DateTime @updatedAt  
-    purchase            Purchase[]
-
-    // booking of free trials at max 10 only
-    trialbooking        TrialBooking[]
-  
+    booking             Booking[]
 }
 
 model Mentor{
-    // basic mandatory details
+    
     id               String   @id @default(uuid())
-    name             String?   
-    email            String   @unique
     password         String
+    email            String   @unique  
     mobile_number    String   @unique
+    
     profilePicture   String?
+
+    name             String?  
+    linkedin         String?
+    about            String?   
+    language         String[]
+    skill            String[]
+    domain           String? 
+    currentlyWorking Boolean  @default(true)
+    yearsofExperience Int?  
+      
     city             String?
     state            String?
     country          String?
- 
-    // education and work experience
+    timezone         String @default("Asia/Kolkata")
+   
     education        Education[]
-    workExperience   WorkExperience[]
-    skill            String[]
-    currentlyWorking Boolean  @default(true)
-    yearsofExperience Int?         
-    domain            String?   
-    tools             String[]
-    
-    //socials 
-    linkedin         String?
-    Instagram        String?
-     
-    // about
-    about            String?   
-    language         String[]
-     
-    //Bookings
-    menteesCount     Int  @default(0)
-    availableTime    AvailableTime[]
-    price_1month     Int?
-    price_3month     Int?
-    price_6month     Int?
-    sessionsPerMonth Int?
-    sessionsCount    Int  @default(0)
+    workExperience   WorkExperience[]     
+    availability     Availability[]
+    booking          Booking[] 
+    service          Service[]
+    slot             Slot[]
+    menteesCount     Int  @default(0) 
     menteeMinutes    Int  @default(0)
-    trialbooking     TrialBooking[] 
-    purchase         Purchase[]
-
+   
     //app specific
+   
     isActive         Boolean  @default(true)
     verified         Boolean  @default(false)
     createdAt        DateTime @default(now())
     updatedAt        DateTime @updatedAt
 }
 
-model AvailableTime{
-    id            String  @default(uuid())
-    mentorId      String
-    mentor        Mentor  @relation(fields:[id],references: [id], onDelete: Cascade)
-    day           Int     // 0 for sun, 1 for mon , .........., 6 for sat
-    availability  Boolean @default(false)
-    startTime     String?  // 7.00 AM
-    endTime       String?  // 12.00 pm
-
-    @@id([mentorId,day]) 
+model Availability{
+    id          String @id @default(uuid())
+    mentorId    String   
+    mentor      Mentor  @relation(fields:[mentorId],references: [id], onDelete: Cascade)
+    isAvailable Boolean
+    day         Int  // 0 for sunday, 1 for monday.....6 for saturday
+    startTime   String
+    endTime     String
 }
 
 model Education{
@@ -127,33 +114,44 @@ model WorkExperience{
       endYear     String    
 }
 
-model Purchase{
-      id                 String @id @default(uuid())
-      userId             String
-      user               User   @relation(fields:[userId],references:[id], onDelete: Cascade)
-      mentorId           String
-      mentor             Mentor @relation(fields:[mentorId],references:[id], onDelete: Cascade)
-      plan               String
-      duration           Int // 30days or 90days or 180 days
-      startDate          DateTime
-      endDate            DateTime
-      totalSessions      Int
-      availableSessions  Int
+model Service{
+     id          String @id @default(uuid())
+     mentorId    String   
+     mentor      Mentor  @relation(fields:[mentorId],references: [id], onDelete: Cascade)
+     name        String
+     price       Int
+     description String?
+     booking     Booking[] 
 }
 
-model TrialBooking{
+model Slot{
+     id          String @id @default(uuid())
+     mentorId    String   
+     mentor      Mentor  @relation(fields:[mentorId],references: [id], onDelete: Cascade)
+     startTime   DateTime
+     endTime     DateTime
+     booking     Booking[]
+     isBooked    Boolean @default(false)
+}
+
+model  Booking{
      id            String @id @default(uuid())
      userId        String
      user          User   @relation(fields:[userId] ,references: [id])
      mentorId      String
      mentor        Mentor @relation(fields:[mentorId],references: [id])
-     bookingStatus status @default(upcoming)
-     startTime     String
+     serviceId     String 
+     service       Service @relation(fields:[serviceId], references:[id])
+     slotId        String 
+     slot          Slot @relation(fields:[slotId], references:[id])
+     status        Status  @default(upcoming)
+     createdAt     DateTime @default(now())
+     updatedAt     DateTime @updatedAt
 }
 
-enum status{
-    upcoming
-    ongoing
+enum Status{
+    upcoming 
+    cancelled
     completed
 }
 

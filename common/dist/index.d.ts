@@ -69,60 +69,50 @@ export declare const day: zod.ZodEnum<["mon", "tue", "wed", "thu", "fri", "sat",
 export declare const mentorSchema: zod.ZodObject<{
     name: zod.ZodOptional<zod.ZodString>;
     language: zod.ZodOptional<zod.ZodArray<zod.ZodString, "many">>;
-    profilePicture: zod.ZodOptional<zod.ZodString>;
-    city: zod.ZodOptional<zod.ZodString>;
-    state: zod.ZodOptional<zod.ZodString>;
-    country: zod.ZodOptional<zod.ZodString>;
     skill: zod.ZodOptional<zod.ZodArray<zod.ZodString, "many">>;
     currentlyWorking: zod.ZodOptional<zod.ZodBoolean>;
     yearsofExperience: zod.ZodOptional<zod.ZodNumber>;
     domain: zod.ZodOptional<zod.ZodString>;
-    tools: zod.ZodOptional<zod.ZodArray<zod.ZodString, "many">>;
     linkedin: zod.ZodOptional<zod.ZodString>;
-    Instagram: zod.ZodOptional<zod.ZodString>;
-    price_1month: zod.ZodOptional<zod.ZodNumber>;
-    price_3month: zod.ZodOptional<zod.ZodNumber>;
-    price_6month: zod.ZodOptional<zod.ZodNumber>;
-    sessionsPerMonth: zod.ZodOptional<zod.ZodNumber>;
+    about: zod.ZodOptional<zod.ZodString>;
 }, "strip", zod.ZodTypeAny, {
     name?: string | undefined;
     language?: string[] | undefined;
-    city?: string | undefined;
-    state?: string | undefined;
-    country?: string | undefined;
-    profilePicture?: string | undefined;
     linkedin?: string | undefined;
-    Instagram?: string | undefined;
     skill?: string[] | undefined;
     currentlyWorking?: boolean | undefined;
     yearsofExperience?: number | undefined;
     domain?: string | undefined;
-    tools?: string[] | undefined;
-    price_1month?: number | undefined;
-    price_3month?: number | undefined;
-    price_6month?: number | undefined;
-    sessionsPerMonth?: number | undefined;
+    about?: string | undefined;
 }, {
     name?: string | undefined;
     language?: string[] | undefined;
-    city?: string | undefined;
-    state?: string | undefined;
-    country?: string | undefined;
-    profilePicture?: string | undefined;
     linkedin?: string | undefined;
-    Instagram?: string | undefined;
     skill?: string[] | undefined;
     currentlyWorking?: boolean | undefined;
     yearsofExperience?: number | undefined;
     domain?: string | undefined;
-    tools?: string[] | undefined;
-    price_1month?: number | undefined;
-    price_3month?: number | undefined;
-    price_6month?: number | undefined;
-    sessionsPerMonth?: number | undefined;
+    about?: string | undefined;
 }>;
 export type Mentor = zod.infer<typeof mentorSchema>;
-export declare const mentorEducationSchema: zod.ZodObject<{
+export declare const mentorGeographicSchema: zod.ZodObject<{
+    city: zod.ZodString;
+    state: zod.ZodString;
+    country: zod.ZodString;
+    timezone: zod.ZodString;
+}, "strip", zod.ZodTypeAny, {
+    city: string;
+    state: string;
+    country: string;
+    timezone: string;
+}, {
+    city: string;
+    state: string;
+    country: string;
+    timezone: string;
+}>;
+export type MentorGeographic = zod.infer<typeof mentorGeographicSchema>;
+export declare const mentorEducationSchema: zod.ZodArray<zod.ZodObject<{
     degree: zod.ZodString;
     college: zod.ZodString;
     course: zod.ZodString;
@@ -140,9 +130,9 @@ export declare const mentorEducationSchema: zod.ZodObject<{
     college: string;
     startYear: string;
     endYear: string;
-}>;
+}>, "many">;
 export type MentorEducation = zod.infer<typeof mentorEducationSchema>;
-export declare const mentorWorkExperienceSchema: zod.ZodObject<{
+export declare const mentorWorkExperienceSchema: zod.ZodArray<zod.ZodObject<{
     company: zod.ZodString;
     role: zod.ZodString;
     startYear: zod.ZodString;
@@ -157,48 +147,32 @@ export declare const mentorWorkExperienceSchema: zod.ZodObject<{
     endYear: string;
     company: string;
     role: string;
-}>;
+}>, "many">;
 export type mentorWorkExperience = zod.infer<typeof mentorWorkExperienceSchema>;
-export declare const mentorAvailableTimeSchema: zod.ZodObject<{
-    availableTime: zod.ZodEffects<zod.ZodArray<zod.ZodObject<{
-        day: zod.ZodNumber;
-        availability: zod.ZodBoolean;
-        startTime: zod.ZodOptional<zod.ZodString>;
-        endTime: zod.ZodOptional<zod.ZodString>;
-    }, "strip", zod.ZodTypeAny, {
-        day: number;
-        availability: boolean;
-        startTime?: string | undefined;
-        endTime?: string | undefined;
-    }, {
-        day: number;
-        availability: boolean;
-        startTime?: string | undefined;
-        endTime?: string | undefined;
-    }>, "many">, {
-        day: number;
-        availability: boolean;
-        startTime?: string | undefined;
-        endTime?: string | undefined;
-    }[], {
-        day: number;
-        availability: boolean;
-        startTime?: string | undefined;
-        endTime?: string | undefined;
-    }[]>;
+export declare const mentorAvailableTimeSchema: zod.ZodEffects<zod.ZodArray<zod.ZodObject<{
+    day: zod.ZodNumber;
+    isAvailable: zod.ZodBoolean;
+    startTime: zod.ZodString;
+    endTime: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    availableTime: {
-        day: number;
-        availability: boolean;
-        startTime?: string | undefined;
-        endTime?: string | undefined;
-    }[];
+    day: number;
+    isAvailable: boolean;
+    startTime: string;
+    endTime: string;
 }, {
-    availableTime: {
-        day: number;
-        availability: boolean;
-        startTime?: string | undefined;
-        endTime?: string | undefined;
-    }[];
-}>;
+    day: number;
+    isAvailable: boolean;
+    startTime: string;
+    endTime: string;
+}>, "many">, {
+    day: number;
+    isAvailable: boolean;
+    startTime: string;
+    endTime: string;
+}[], {
+    day: number;
+    isAvailable: boolean;
+    startTime: string;
+    endTime: string;
+}[]>;
 export type mentorAvailableTime = zod.infer<typeof mentorAvailableTimeSchema>;

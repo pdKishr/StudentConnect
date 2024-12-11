@@ -101,16 +101,10 @@ admin.get('/auth/view-mentor-profile', async(c)=>{
                  currentlyWorking  : true,
                  yearsofExperience : true,
                  domain            : true,
-                 tools             : true,
-                 linkedin          : true,
-                 Instagram         : true,
+                 linkedin          : true,                
                  about             : true,
                  language          : true,
-                 menteesCount      : true,
-                 price_1month      : true,
-                 price_3month      : true,
-                 sessionsPerMonth  : true, 
-                 sessionsCount     : true,  
+                 menteesCount      : true,               
                  menteeMinutes     : true,
                  isActive          : true,    
                  verified          : true,  
@@ -133,16 +127,15 @@ admin.get('/auth/view-mentor-profile', async(c)=>{
                          endYear  : true
                      }
                  },
-                 availableTime : {
-                     select :{
-                         day          : true,
-                         availability : true,
-                         startTime    : true,
-                         endTime      : true
-                     }
-                 },
+                 availability :{
+                  select :{
+                     isAvailable : true,
+                     day : true,
+                     startTime : true,
+                     endTime : true
+                  }
+                 }    
              }
-         
           })
 
           return c.json({mentor:mentor})

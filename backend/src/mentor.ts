@@ -11,14 +11,17 @@ import {
      Signin,
      mentorSchema,
      Mentor,
+     MentorGeographic,
+     mentorGeographicSchema,
      mentorEducationSchema,
      MentorEducation,
      mentorWorkExperienceSchema,
      mentorWorkExperience,
      mentorAvailableTimeSchema,
      mentorAvailableTime
+} from '@pdkishr/guided-common';
 
-} from '@pdkishr/guided-common'
+
 
 const mentor = new Hono<{
     Bindings : {
@@ -62,17 +65,7 @@ mentor.post('/signup', async(c)=>{
                 mobile_number : body.mobile_number,  
             }
         })
-      
-      const days = [0,1,2,3,4,5,6]
-      days.map( async(day)=>{
-        await prisma.availableTime.create({
-          data :{
-             mentorId : mentor.id,
-             day      : day 
-          }
-        })
-        
-      })   
+    
         const token = await sign({id:mentor.id},c.env.JWT_KEY)
         return c.json({token});
      }
@@ -130,12 +123,13 @@ mentor.post('/signin',async (c)=>{
     }
 })
 
-mentor.put('/auth/change-email', async(c)=>{
+mentor.put('/auth/update/email', async(c)=>{
   const email =  c.req.header('email')
+  
   const emailSchema = zod.string().email()
-  const success = emailSchema.safeParse(email)
+  const {success} = emailSchema.safeParse(email)
 
-  if(! success){
+  if(!success){
       c.status(403);
        return c.json({msg :'invalid inputs'})
      }
@@ -154,6 +148,7 @@ mentor.put('/auth/change-email', async(c)=>{
                 email : email,
              }
            })
+         
            return c.json({msg:'updated email'})
         }
        catch(e){
@@ -165,12 +160,12 @@ mentor.put('/auth/change-email', async(c)=>{
         }
 })
 
-mentor.put('/auth/change-mobilenumber', async(c)=>{
-  const body :{mobile:string} =  await c.req.json()
-  const schema  = zod.number().min(10).max(15)
-  const success = schema.safeParse(body.mobile)
+mentor.put('/auth/update/mobile_number', async(c)=>{
+  const body :{mobile_number:string} =  await c.req.json()
+  const schema  = zod.string().min(10).max(15)
+  const {success} = schema.safeParse(body.mobile_number)
 
-  if(! success){
+  if(!success){
       c.status(403);
        return c.json({msg :'invalid inputs'})
      }
@@ -185,7 +180,7 @@ mentor.put('/auth/change-mobilenumber', async(c)=>{
          const mentor = await prisma.mentor.update({
            where:{id:id},
            data : {
-              mobile_number : body.mobile
+              mobile_number : body.mobile_number
            }
          })
 
@@ -200,13 +195,13 @@ mentor.put('/auth/change-mobilenumber', async(c)=>{
       }
 })
 
-mentor.put('/auth/change-password', async(c)=>{
+mentor.put('/auth/update/password', async(c)=>{
   const body = await c.req.json()
   const schema = zod.object({
       newPassword : zod.string().min(8),
       oldPassword : zod.string().min(8)
   })
-  const success = schema.safeParse(body);
+  const {success} = schema.safeParse(body);
 
   if(! success){
       c.status(403);
@@ -254,12 +249,44 @@ mentor.put('/auth/change-password', async(c)=>{
       }
 })
 
-mentor.put('/auth/update-basicDetails' , async(c)=>{
+mentor.put('auth/update/profilepicture', async(c)=>{
+
+      const profilePicture = c.req.header('profilepicture')
+      const schema = zod.string().url();
+
+      const {success} = schema.safeParse(profilePicture);
+      if(! success) return c.json({msg:'invalid input'})
+
+      const jwtpayload          = c.get('jwtPayload');
+      const id        : string  = jwtpayload.id;
+    
+    
+      const prisma = new PrismaClient({
+        datasourceUrl : c.env?.DATABASE_URL
+      }).$extends(withAccelerate())
+
+      try{
+            await prisma.mentor.update({
+              where :{id:id},
+              data :{
+                profilePicture : profilePicture
+              }
+            })
+      }
+      catch(e){
+        c.status(403)
+        return c.json({err:"error"})
+        }
+        finally{
+            await prisma.$disconnect()
+        }
+})
+
+mentor.put('/auth/update/demographic' , async(c)=>{
 
       const body : Mentor = await c.req.json()
-        
-      const {success} = mentorSchema.safeParse(body)
-       if(! success) return c.json({msg:'invalid inputs'})
+      const {success} = mentorSchema.safeParse(body);
+      if(! success) return c.json({msg:'invalid inputs'})
 
       const jwtpayload          = c.get('jwtPayload');
       const id        : string  = jwtpayload.id;
@@ -269,38 +296,26 @@ mentor.put('/auth/update-basicDetails' , async(c)=>{
       }).$extends(withAccelerate())
     
       try{      
-        const oldData = await prisma.mentor.findUnique({
-          where : {id:id},
-        })
       
         const mentor = await prisma.mentor.update({
             where :{
                id : id
             },
             data :{
-                 name              : body?.name ?? oldData?.name,
-                 language          : body?.language ?? oldData?.language,
-                 profilePicture    : body?.profilePicture ?? oldData?.profilePicture,
-                 city              : body?.city ?? oldData?.city, 
-                 state             : body?.state ?? oldData?.state,
-                 country           : body?.country ?? oldData?.country,
-                 skill             : body?.skill ?? oldData?.skill,
-                 currentlyWorking  : body?.currentlyWorking ?? oldData?.currentlyWorking,
-                 yearsofExperience : body?.yearsofExperience ?? oldData?.yearsofExperience,
-                 domain            : body?.domain ?? oldData?.domain,
-                 linkedin          : body?.linkedin ?? oldData?.linkedin,
-                 Instagram         : body?.Instagram ?? oldData?.Instagram,
-                 price_1month      : body?.price_1month ?? oldData?.price_1month,
-                 price_3month      : body?.price_3month ?? oldData?.price_3month,
-                 price_6month      : body?.price_6month ?? oldData?.price_6month,
-                 sessionsPerMonth  : body?.sessionsPerMonth ?? oldData?.sessionsPerMonth
-            }
+                 name              : body?.name ,
+                 language          : body?.language ,    
+                 skill             : body?.skill ,
+                 currentlyWorking  : body?.currentlyWorking ,
+                 yearsofExperience : body?.yearsofExperience ,
+                 domain            : body?.domain ,
+                 linkedin          : body?.linkedin ,
+                 about             : body?.about 
+                }
           })
-
+        
           return c.json({msg:'updated'}) 
       }  
-      catch(e){
-        console.log(e)
+      catch(e){ 
         c.status(403)
         return c.json({err:e})
       }
@@ -309,11 +324,42 @@ mentor.put('/auth/update-basicDetails' , async(c)=>{
       }
 })
 
-mentor.put('/auth/add-education', async(c)=>{
+mentor.put('/auth/update/geographic' , async(c)=>{
+          const body : MentorGeographic = await c.req.json();
+          const {success} = mentorGeographicSchema.safeParse(body);
+          if(! success) return c.json({msg:'invalid inputs'})
 
-  const body : MentorEducation = await c.req.json();
-  
-  const {success} = mentorEducationSchema.safeParse(body)
+          const jwtpayload   = c.get('jwtPayload');
+          const id : string  = jwtpayload.id;
+
+          const prisma = new PrismaClient({
+            datasourceUrl : c.env?.DATABASE_URL
+          }).$extends(withAccelerate())
+
+          try{
+             await prisma.mentor.update({
+                where :{id:id},
+                data : {
+                  city              : body.city , 
+                  state             : body.state ,
+                  country           : body.country,
+                  timezone          : body.timezone
+                }
+              })
+          }
+          catch(e){
+            c.status(403)
+            return c.json({err:e})
+          }
+          finally{
+            await prisma.$disconnect()
+          }
+})
+
+mentor.put('/auth/update/education', async(c)=>{
+
+  const body : {education : MentorEducation} = await c.req.json();
+  const {success} = mentorEducationSchema.safeParse(body.education);
   if(! success) return c.json({msg:'invalid inputs'})
 
   const jwtpayload   = c.get('jwtPayload');
@@ -323,19 +369,22 @@ mentor.put('/auth/add-education', async(c)=>{
     datasourceUrl : c.env?.DATABASE_URL
   }).$extends(withAccelerate())
   
-  try{
-        await prisma.education.create({
-             data :{
-               mentorId : id,
-               college  : body.college ,
-               degree   : body.degree ,
-               course   : body.course ,
-               startYear: body?.startYear,
-               endYear  : body?.endYear
-             }
+  try{  
+          await prisma.education.deleteMany({
+            where :{mentorId : id}
           })
         
-          return c.json({msg:'education added'})
+          const mentor = await prisma.mentor.update({
+              where :{ id:id},
+              data :{
+                  education : {create :body.education}
+              },
+              select :{
+                education : true
+              }
+          })   
+          
+         return c.json({mentor})
   }  
   catch(e){
     c.status(403)
@@ -344,152 +393,53 @@ mentor.put('/auth/add-education', async(c)=>{
   finally{
     await prisma.$disconnect()
   }   
-   
-
 })
 
-mentor.put('/auth/update-education', async(c)=>{
-    
-     const edId  = c.req.header('edid');
-     const body : MentorEducation = await c.req.json();
-  
-     const {success} = mentorEducationSchema.safeParse(body)
-     if(! success) return c.json({msg:'invalid inputs'})
+mentor.put('/auth/update/workExperience', async(c)=>{
 
-     const jwtpayload   = c.get('jwtPayload');
-     const id : string  = jwtpayload.id;
-     
-     const prisma = new PrismaClient({
-      datasourceUrl : c.env?.DATABASE_URL
-    }).$extends(withAccelerate())
+    const body: {workExperience : mentorWorkExperience}= await c.req.json();
+    const {success} = mentorWorkExperienceSchema.safeParse(body.workExperience);
+    if(! success) return c.json({msg:'invalid inputs'})
     
-    try{
-            
-     const exisitingEdu = await prisma.education.findUnique({
-         where :{ id:edId},
-     })
+    const jwtpayload   = c.get('jwtPayload');
+    const id : string  = jwtpayload.id;
     
-     await prisma.education.update({
-          where :{id:edId , mentorId: id},
-          data : {
-             college  : body?.college ?? exisitingEdu?.college,
-             degree   : body?.degree  ?? exisitingEdu?.degree,
-             course   : body?.course  ?? exisitingEdu?.course,
-             startYear: body?.startYear ?? exisitingEdu?.startYear,
-             endYear  : body?.endYear ?? exisitingEdu?.endYear,
-          },
-          select :{
-            college  : true,
-            degree   : true,
-            course   : true,
-            startYear: true,
-            endYear  : true
+    const prisma = new PrismaClient({
+    datasourceUrl : c.env?.DATABASE_URL
+  }).$extends(withAccelerate())
+  
+          try{            
+              await prisma.workExperience.deleteMany({
+                where :{ mentorId : id}
+              })
+             
+              const mentor = await prisma.mentor.update({
+                where : {id:id},
+                data :{
+                  workExperience : {create: body.workExperience}
+                },
+                select :{
+                  workExperience : true
+                }
+              })
+    
+            return c.json({msg:mentor})        
+          }  
+          catch(e){
+            c.status(403)
+            return c.json({err:"error"})
           }
-     })
-       
-     return c.json({msg:'updated education field'})        
-    }  
-    catch(e){
-      c.status(403)
-      return c.json({err:"error"})
-    }
-    finally{
-      await prisma.$disconnect()
-    }   
-     
-})
-
-mentor.put('/auth/create-workExperience', async(c)=>{
-  const body : mentorWorkExperience = await c.req.json();
-  
-  const {success} = mentorWorkExperienceSchema.safeParse(body)
-  if(! success) return c.json({msg:'invalid inputs'})
-  
-     const jwtpayload = c.get('jwtPayload')
-     const id : string = jwtpayload.id;
-     
-     const prisma = new PrismaClient({
-      datasourceUrl : c.env?.DATABASE_URL
-    }).$extends(withAccelerate())
-    
-    try{
-          await prisma.workExperience.create({
-               data :{
-                 mentorId : id,
-                 company  : body.company,
-                 role     : body.role,
-                 startYear: body.startYear,
-                 endYear  : body.endYear
-               }
-            })
-  
-            return c.json({msg:'workExperience added'})
-    }  
-    catch(e){
-      c.status(403)
-      return c.json({err:"error"})
-    }
-    finally{
-      await prisma.$disconnect()
-    } 
-
-})
-
-mentor.put('/auth/update-workExperience', async(c)=>{
-
-  const workId  = c.req.header('workid');
-  const body : mentorWorkExperience = await c.req.json();
-  
-  const {success} = mentorWorkExperienceSchema.safeParse(body)
-  if(! success) return c.json({msg:'invalid inputs'})
-
-  const jwtpayload   = c.get('jwtPayload');
-  const id : string  = jwtpayload.id;
-  
-  const prisma = new PrismaClient({
-   datasourceUrl : c.env?.DATABASE_URL
- }).$extends(withAccelerate())
- 
- try{
-         
-  const exisitingWork = await prisma.workExperience.findUnique({
-      where :{ id:workId},
-  })
-  
-  const work = await prisma.workExperience.update({
-       where :{id:workId , mentorId: id},
-       data : {
-          company  : body?.company ?? exisitingWork?.company,
-          role     : body?.role  ?? exisitingWork?.role,
-          startYear: body?.startYear ?? exisitingWork?.startYear,
-          endYear  : body?.endYear ?? exisitingWork?.endYear,
-       },
-       select :{
-         company  : true,
-         role   : true,
-         startYear: true,
-         endYear  : true
-       }
-  })
-    
-  return c.json({msg:'workExperience updated'})        
- }  
- catch(e){
-   c.status(403)
-   return c.json({err:"error"})
- }
- finally{
-   await prisma.$disconnect()
- }   
+          finally{
+            await prisma.$disconnect()
+          }   
   
 })
 
-mentor.put('/auth/update-availableTime' , async(c)=>{
-  const body : mentorAvailableTime = await c.req.json();
-  
-  const {success} = mentorAvailableTimeSchema.safeParse(body)
-  if(! success) return c.json({msg:'invalid inputs'})
-       
+mentor.put('/auth/update/availability' , async(c)=>{
+       const body : {availability : mentorAvailableTime} = await c.req.json();
+       const {success} = mentorAvailableTimeSchema.safeParse(body.availability);
+       if(! success) return c.json({err:'invalid input'})
+                         
        const jwtpayload   = c.get('jwtPayload');
        const id : string  = jwtpayload.id;
        
@@ -497,17 +447,22 @@ mentor.put('/auth/update-availableTime' , async(c)=>{
            datasourceUrl : c.env?.DATABASE_URL
          }).$extends(withAccelerate())
         
-         try{         
-             body.availableTime.map(async (time:any)=>{
-                await prisma.availableTime.update({
-                  where:{mentorId_day:{mentorId:id,day:time.day}},
+         try{           
+                await prisma.availability.deleteMany({
+                     where :{ mentorId : id} 
+                })
+              
+                const mentor = await prisma.mentor.update({
+                  where :{id:id},
                   data :{
-                     availability : time.availability,
-                     startTime    : time.startTime,
-                     endTime      : time.endTime
+                    availability : {create : body.availability } 
+                  },
+                  select :{
+                    availability : true
                   }
-                })  
-             })              
+                })      
+                
+                return c.json({mentor})
          }  
          catch(e){
            c.status(403)
@@ -518,64 +473,21 @@ mentor.put('/auth/update-availableTime' , async(c)=>{
          }   
 })
 
-mentor.get('/auth/show-trial-booking', async(c)=>{
-    const jwtpayload   = c.get('jwtPayload');
-    const id : string  = jwtpayload.id;
-    
-    const prisma = new PrismaClient({
-        datasourceUrl : c.env?.DATABASE_URL
-      }).$extends(withAccelerate())
-    
-      try{
-        const mentor = await prisma.mentor.findUnique({
-            where : { id:id},
-            include:{
-                trialbooking : {select:{
-                       userId        : true,
-                       bookingStatus : true,
-                       startTime     : true,
-                         
-                }}
-            }               
-        })
-        
-            return c.json({trials:mentor?.trialbooking});
-               
-      }  
-      catch(e){
-        c.status(403)
-        return c.json({err:"error"})
-      }
-      finally{
-        await prisma.$disconnect()
-      }   
-})
-
-mentor.get('/auth/mentee-team' , async(c)=>{
+mentor.get('/auth/Bookings', async(c)=>{
     const jwtpayload   = c.get('jwtPayload')
     const id : string  = jwtpayload.id;
     
     const prisma = new PrismaClient({
         datasourceUrl : c.env?.DATABASE_URL
       }).$extends(withAccelerate())
-    
+      
       try{
         const mentor = await prisma.mentor.findUnique({
             where : { id:id},
-            include:{
-                purchase : {select:{
-                       userId        : true,
-                       plan          : true,
-                       duration      : true,
-                       startDate     : true,
-                       endDate       : true,
-                       totalSessions : true,
-                       availableSessions : true
-                }}
-            }               
+            select : {booking : true}          
         })
           
-        return c.json({mentees : mentor?.purchase})     
+        return c.json({mentees : mentor})     
       }  
       catch(e){
         c.status(403)
@@ -586,7 +498,7 @@ mentor.get('/auth/mentee-team' , async(c)=>{
       }   
 })
 
-mentor.get('/auth/view-myprofile' , async(c)=>{
+mentor.get('/auth/home' , async(c)=>{
     const jwtpayload   = c.get('jwtPayload')
     const id : string  = jwtpayload.id;
     
@@ -609,16 +521,10 @@ mentor.get('/auth/view-myprofile' , async(c)=>{
                 currentlyWorking  : true,
                 yearsofExperience : true,
                 domain            : true,
-                tools             : true,
                 linkedin          : true,
-                Instagram         : true,
                 about             : true,
                 language          : true,
-                menteesCount      : true,
-                price_1month      : true,
-                price_3month      : true,
-                sessionsPerMonth  : true, 
-                sessionsCount     : true,  
+                menteesCount      : true,  
                 menteeMinutes     : true,
                 isActive          : true,    
                 verified          : true,  
@@ -641,15 +547,21 @@ mentor.get('/auth/view-myprofile' , async(c)=>{
                         startYear: true,
                         endYear  : true
                     }
-                },
-                availableTime : {
-                    select :{
-                        day          : true,
-                        availability : true,
-                        startTime    : true,
-                        endTime      : true
-                    }
-                },
+                },     
+                availability :{
+                     select :{
+                      isAvailable : true,
+                      day : true,
+                      startTime : true,
+                      endTime : true
+                     }
+                  } ,
+                slot :{
+                  select : {
+                    startTime : true,
+                    endTime   : true
+                  }
+                }       
             }
               
          })

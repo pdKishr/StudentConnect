@@ -5,11 +5,14 @@
     "deploy": "wrangler deploy --minify"
   },
   "dependencies": {
-    "@pdkishr/guided-common": "^1.1.1",
+    "@pdkishr/guided-common": "^1.1.4",
     "@prisma/client": "^6.0.1",
     "@prisma/extension-accelerate": "^1.2.1",
     "bcryptjs": "^2.4.3",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "hono": "^4.6.12",
+    "luxon": "^3.5.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

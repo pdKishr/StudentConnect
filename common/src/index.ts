@@ -44,63 +44,104 @@ export const day = zod.enum(["mon","tue","wed","thu","fri","sat","sun"]);
 export const mentorSchema = zod.object({
       name               : zod.string().min(1).optional(),
       language           : zod.array(zod.string()).optional(),
-      profilePicture     : zod.string().url().optional(),
-      city               : zod.string().optional(),
-      state              : zod.string().optional(),
-      country            : zod.string().optional(),
       skill              : zod.array(zod.string()).optional(),
       currentlyWorking   : zod.boolean().optional(),
       yearsofExperience  : zod.number().optional(),
       domain             : zod.string().optional(),
-      tools              : zod.array(zod.string()).optional(),
       linkedin           : zod.string().url().optional(),
-      Instagram          : zod.string().url().optional(),
-      price_1month       : zod.number().min(1000).max(50000).optional(),
-      price_3month       : zod.number().min(1000).max(50000).optional(),
-      price_6month       : zod.number().min(1000).max(50000).optional(),
-      sessionsPerMonth   : zod.number().min(1).optional(),       
+      about              : zod.string().optional()
 })
 
 export type Mentor = zod.infer<typeof mentorSchema>
 
-export const mentorEducationSchema = zod.object({
+export const mentorGeographicSchema = zod.object({
+    city : zod.string(),
+    state: zod.string(),
+    country: zod.string(),
+    timezone : zod.string()
+})
+
+export type MentorGeographic = zod.infer<typeof mentorGeographicSchema >
+
+export const mentorEducationSchema = zod.array(zod.object({
     
         degree    : zod.string(),
         college   : zod.string(),
         course    : zod.string(),
         startYear : zod.string(),
         endYear   : zod.string()
- 
-})
+
+}));
 
 export type MentorEducation = zod.infer<typeof mentorEducationSchema>
 
-export const mentorWorkExperienceSchema = zod.object({
+export const mentorWorkExperienceSchema = zod.array(zod.object({
         company   : zod.string(),
         role      : zod.string(),
         startYear : zod.string(),
         endYear   : zod.string()
-})
+}));
 
 export type mentorWorkExperience = zod.infer<typeof mentorWorkExperienceSchema>
 
-export const mentorAvailableTimeSchema = zod.object({
-    availableTime  : zod.array(zod.object({
-        day          : zod.number().min(0).min(6),
-        availability : zod.boolean(),
-        startTime    : zod.string().optional(),
-        endTime      : zod.string().optional(),
+export const mentorAvailableTimeSchema = zod.array(zod.object({
+        day          : zod.number().min(0).max(6),
+        isAvailable  : zod.boolean(),
+        startTime    : zod.string(),
+        endTime      : zod.string(),
         })).refine((arr)=>{
-            return arr.length===7 && arr.every((time)=>{
-                if(time.availability){
-                    return time.startTime !==null && time.startTime !== undefined && time.endTime !==null && time.endTime !==null
-                }
+            type TimeSlot = {startTime: number, endTime: number};
+            const groupedByDay : Record<number , TimeSlot[]> = {};
+            const timeRegex = /^\d{2}:\d{2}$/;
 
-                return true;
-            })
-        },
-        {message:'if availability is true, startTime and endTime must be present'})
-})
+           for(const time of arr){
+                if(time.isAvailable){
+                     
+                    if (!timeRegex.test(time.startTime) || !timeRegex.test(time.endTime)) {
+                        return false;
+                      }
+
+                    const startTimeInMinutes = parseTime(time.startTime);
+                    const endTimeInMinutes   =  parseTime(time.endTime);
+
+                    if (startTimeInMinutes === null || endTimeInMinutes === null || startTimeInMinutes >= endTimeInMinutes) {
+                        return false;
+                    }
+
+                    if(!groupedByDay[time.day]){
+                        groupedByDay[time.day] = [];
+                    } 
+
+                    groupedByDay[time.day].push
+                    ({
+                        startTime:startTimeInMinutes,
+                        endTime:endTimeInMinutes
+                        })
+                    
+                }
+            }
+
+           for(const day in groupedByDay){
+               const intervals = groupedByDay[day];
+               intervals.sort((a,b)=> a.startTime - b.startTime);
+
+               for(let i=1;i<intervals.length;i++){
+                   if(intervals[i].startTime < intervals[i-1].endTime) return false;
+               }
+           }      
+             return true;              
+
+        },{
+            message:'Invalid time slots: overlapping or improperly ordered times. Time slots'
+        });
+
+
+function parseTime(time: string) : number|null {
+    const [hours,minutes] = time.split(":").map(Number);
+    if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        return null;
+    }
+    return hours * 60 + minutes;
+}
 
 export type mentorAvailableTime = zod.infer<typeof mentorAvailableTimeSchema>
-
